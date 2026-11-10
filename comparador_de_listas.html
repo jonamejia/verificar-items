@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotejador de Códigos & SKUs (9 dígitos)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        textarea::-webkit-scrollbar, div::-webkit-scrollbar { width: 6px; height: 6px; }
+        textarea::-webkit-scrollbar-track, div::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        textarea::-webkit-scrollbar-thumb, div::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        textarea::-webkit-scrollbar-thumb:hover, div::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 sticky top-0 z-20 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-gradient-to-tr from-indigo-600 to-violet-500 text-white rounded-xl shadow-md shadow-indigo-500/20">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-wide">SKU Matcher</h1>
+                    <p class="text-xs text-slate-400">Verificador rápido de códigos de 9 dígitos (ej. 100788253)</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button onclick="cargarEjemploSKU()" class="px-3 py-1.5 text-xs font-semibold text-slate-300 bg-slate-700/80 hover:bg-slate-700 rounded-lg transition border border-slate-600">
+                    Cargar 9 Dígitos Ejemplo
+                </button>
+                <button onclick="limpiarTodo()" class="px-3 py-1.5 text-xs font-semibold text-rose-300 bg-rose-950/50 hover:bg-rose-900/60 rounded-lg transition border border-rose-800/60">
+                    Limpiar Todo
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-grow">
+        
+        <!-- Bar de Configuración -->
+        <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700/50 shadow-sm mb-6 backdrop-blur">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-6 text-sm">
+                    <span class="font-semibold text-slate-300 text-xs uppercase tracking-wider">Normalización:</span>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="optDeduplicate" checked onchange="comparar()" class="rounded bg-slate-900 border-slate-700 text-indigo-500 focus:ring-indigo-500 w-4 h-4">
+                        <span class="ml-2 text-slate-300 text-xs">Eliminar duplicados</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="optOnly9Digits" checked onchange="comparar()" class="rounded bg-slate-900 border-slate-700 text-indigo-500 focus:ring-indigo-500 w-4 h-4">
+                        <span class="ml-2 text-slate-300 text-xs">Filtrar estricto (Exactamente 9 dígitos)</span>
+                    </label>
+                </div>
+                <div class="text-xs text-slate-400">
+                    Acepta saltos de línea, comas, espacios o datos pegados desde Excel.
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- List 1 (Maestra) -->
+            <div class="bg-slate-800/60 rounded-xl border border-slate-700/60 shadow-sm flex flex-col h-[380px]">
+                <div class="p-3.5 border-b border-slate-700/50 bg-slate-800/90 rounded-t-xl flex justify-between items-center">
+                    <div>
+                        <h2 class="font-bold text-slate-200 text-sm">1. Lista Maestra / Esperada</h2>
+                        <p class="text-[11px] text-slate-400">SKUs teóricos requeridos</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="limpiarCampo('lista1')" class="text-[11px] text-slate-400 hover:text-rose-400 transition">Limpiar</button>
+                        <span id="count1" class="px-2.5 py-0.5 text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
+                            0 SKUs
+                        </span>
+                    </div>
+                </div>
+                <div class="p-3 flex-grow relative">
+                    <textarea id="lista1" oninput="comparar()" 
+                        placeholder="Pega aquí los códigos requeridos...&#10;100788253&#10;100788254&#10;100788255" 
+                        class="w-full h-full bg-slate-900/90 text-slate-100 resize-none border border-slate-700/80 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono leading-relaxed"></textarea>
+                </div>
+            </div>
+
+            <!-- List 2 (Verificada) -->
+            <div class="bg-slate-800/60 rounded-xl border border-slate-700/60 shadow-sm flex flex-col h-[380px]">
+                <div class="p-3.5 border-b border-slate-700/50 bg-slate-800/90 rounded-t-xl flex justify-between items-center">
+                    <div>
+                        <h2 class="font-bold text-slate-200 text-sm">2. Lista Escaneada / A Verificar</h2>
+                        <p class="text-[11px] text-slate-400">SKUs contados / escaneados</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="limpiarCampo('lista2')" class="text-[11px] text-slate-400 hover:text-rose-400 transition">Limpiar</button>
+                        <span id="count2" class="px-2.5 py-0.5 text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full">
+                            0 SKUs
+                        </span>
+                    </div>
+                </div>
+                <div class="p-3 flex-grow relative">
+                    <textarea id="lista2" oninput="comparar()" 
+                        placeholder="Pega o escanea aquí los códigos...&#10;100788253&#10;100788255" 
+                        class="w-full h-full bg-slate-900/90 text-slate-100 resize-none border border-slate-700/80 rounded-lg p-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono leading-relaxed"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Results -->
+        <div class="space-y-4">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800 pb-3 gap-3">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-base font-bold text-slate-100">Resultado del Cotejo</h3>
+                    <input type="text" id="filterInput" oninput="comparar()" placeholder="Buscar código..." class="bg-slate-900 border border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-200 focus:outline-none focus:border-indigo-500 w-48">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="copiarFaltantes()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold transition shadow-md shadow-rose-950/40">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        Copiar Faltantes
+                    </button>
+                    <button onclick="descargarReporte()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg text-xs font-semibold transition border border-slate-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Descargar Reporte (.txt)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Card 1: Missing -->
+                <div class="bg-slate-800/60 rounded-xl border border-rose-900/40 shadow-sm overflow-hidden flex flex-col h-80">
+                    <div class="p-3 bg-rose-950/40 border-b border-rose-900/40 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                            <h4 class="font-bold text-rose-300 text-xs uppercase tracking-wider">Faltantes en Escaneo</h4>
+                        </div>
+                        <span id="badgeFaltantes" class="px-2 py-0.5 text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full">0</span>
+                    </div>
+                    <div id="containerFaltantes" class="p-3 overflow-y-auto space-y-1.5 flex-grow font-mono"></div>
+                </div>
+
+                <!-- Card 2: Matches -->
+                <div class="bg-slate-800/60 rounded-xl border border-emerald-900/40 shadow-sm overflow-hidden flex flex-col h-80">
+                    <div class="p-3 bg-emerald-950/40 border-b border-emerald-900/40 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            <h4 class="font-bold text-emerald-300 text-xs uppercase tracking-wider">Coincidencias (OK)</h4>
+                        </div>
+                        <span id="badgeCoincidencias" class="px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">0</span>
+                    </div>
+                    <div id="containerCoincidencias" class="p-3 overflow-y-auto space-y-1.5 flex-grow font-mono"></div>
+                </div>
+
+                <!-- Card 3: Extras -->
+                <div class="bg-slate-800/60 rounded-xl border border-amber-900/40 shadow-sm overflow-hidden flex flex-col h-80">
+                    <div class="p-3 bg-amber-950/40 border-b border-amber-900/40 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                            <h4 class="font-bold text-amber-300 text-xs uppercase tracking-wider">No registrados en Maestra</h4>
+                        </div>
+                        <span id="badgeSobrantes" class="px-2 py-0.5 text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full">0</span>
+                    </div>
+                    <div id="containerSobrantes" class="p-3 overflow-y-auto space-y-1.5 flex-grow font-mono"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 border border-slate-700 text-slate-100 px-4 py-2.5 rounded-xl shadow-2xl text-xs flex items-center gap-2 translate-y-16 opacity-0 transition-all duration-300 pointer-events-none z-50">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span id="toastMsg">Notificación</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800/40 border-t border-slate-800 py-3 mt-6">
+        <div class="max-w-7xl mx-auto px-4 text-center text-[11px] text-slate-500">
+            Optimizada para el procesamiento masivo de SKUs numéricos. 100% Ejecutado en local.
+        </div>
+    </footer>
+
+    <!-- JS Logic -->
+    <script>
+        let resultadosGlobales = { faltantes: [], coincidencias: [], sobrantes: [] };
+
+        function parseInput(rawText, deduplicate, only9Digits) {
+            if (!rawText) return [];
+            
+            // Extrae combinaciones numéricas o bloques separados por saltos, comas o espacios
+            let tokens = rawText.split(/[\n,;\s]+/);
+            let result = [];
+            let seen = new Set();
+
+            tokens.forEach(tok => {
+                let cleaned = tok.trim();
+                if (!cleaned) return;
+
+                // Si está activa la regla estricta de 9 dígitos, verifica la expresión regular
+                if (only9Digits) {
+                    if (!/^\d{9}$/.test(cleaned)) return;
+                }
+
+                if (deduplicate) {
+                    if (!seen.has(cleaned)) {
+                        seen.add(cleaned);
+                        result.push(cleaned);
+                    }
+                } else {
+                    result.push(cleaned);
+                }
+            });
+
+            return result;
+        }
+
+        function comparar() {
+            const text1 = document.getElementById('lista1').value;
+            const text2 = document.getElementById('lista2').value;
+            const deduplicate = document.getElementById('optDeduplicate').checked;
+            const only9Digits = document.getElementById('optOnly9Digits').checked;
+            const filterQuery = document.getElementById('filterInput').value.trim().toLowerCase();
+
+            const list1 = parseInput(text1, deduplicate, only9Digits);
+            const list2 = parseInput(text2, deduplicate, only9Digits);
+
+            document.getElementById('count1').innerText = `${list1.length} SKUs`;
+            document.getElementById('count2').innerText = `${list2.length} SKUs`;
+
+            const set2 = new Set(list2);
+            const set1 = new Set(list1);
+
+            let faltantes = list1.filter(item => !set2.has(item));
+            let coincidencias = list1.filter(item => set2.has(item));
+            let sobrantes = list2.filter(item => !set1.has(item));
+
+            resultadosGlobales = { faltantes, coincidencias, sobrantes };
+
+            // Filtrado secundario mediante buscador
+            if (filterQuery) {
+                faltantes = faltantes.filter(i => i.toLowerCase().includes(filterQuery));
+                coincidencias = coincidencias.filter(i => i.toLowerCase().includes(filterQuery));
+                sobrantes = sobrantes.filter(i => i.toLowerCase().includes(filterQuery));
+            }
+
+            renderList('containerFaltantes', 'badgeFaltantes', faltantes, 'text-rose-300 bg-rose-950/40 border-rose-900/60');
+            renderList('containerCoincidencias', 'badgeCoincidencias', coincidencias, 'text-emerald-300 bg-emerald-950/40 border-emerald-900/60');
+            renderList('containerSobrantes', 'badgeSobrantes', sobrantes, 'text-amber-300 bg-amber-950/40 border-amber-900/60');
+        }
+
+        function renderList(containerId, badgeId, items, styleClasses) {
+            const container = document.getElementById(containerId);
+            const badge = document.getElementById(badgeId);
+
+            badge.innerText = items.length;
+
+            if (items.length === 0) {
+                container.innerHTML = `<p class="text-slate-500 italic text-xs py-2 text-center">Sin registros</p>`;
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <div class="px-2.5 py-1 rounded border text-xs font-mono tracking-wider flex justify-between items-center ${styleClasses}">
+                    <span>${escapeHtml(item)}</span>
+                    <button onclick="copiarItem('${item}')" title="Copiar código" class="opacity-40 hover:opacity-100 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.innerText = text;
+            return div.innerHTML;
+        }
+
+        function copiarItem(item) {
+            fallbackCopy(item);
+            showToast(`SKU ${item} copiado`);
+        }
+
+        function copiarFaltantes() {
+            if (resultadosGlobales.faltantes.length === 0) {
+                showToast("No hay elementos faltantes para copiar");
+                return;
+            }
+            fallbackCopy(resultadosGlobales.faltantes.join('\n'));
+            showToast(`¡${resultadosGlobales.faltantes.length} faltantes copiados!`);
+        }
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try { document.execCommand('copy'); } catch (err) {}
+            document.body.removeChild(textArea);
+        }
+
+        function descargarReporte() {
+            if (!resultadosGlobales.faltantes.length && !resultadosGlobales.coincidencias.length && !resultadosGlobales.sobrantes.length) {
+                showToast("No hay datos para exportar");
+                return;
+            }
+
+            let txt = `===================================\n  COTEJO DE SKUS - REPORTE\n===================================\n\n`;
+            txt += `FALTANTES (${resultadosGlobales.faltantes.length}):\n` + (resultadosGlobales.faltantes.join('\n') || 'Ninguno') + '\n\n';
+            txt += `COINCIDENCIAS (${resultadosGlobales.coincidencias.length}):\n` + (resultadosGlobales.coincidencias.join('\n') || 'Ninguno') + '\n\n';
+            txt += `SOBRANTES (${resultadosGlobales.sobrantes.length}):\n` + (resultadosGlobales.sobrantes.join('\n') || 'Ninguno');
+
+            const blob = new Blob([txt], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `cotejo-skus-${Date.now()}.txt`;
+            a.click();
+            showToast("Reporte descargado");
+        }
+
+        function cargarEjemploSKU() {
+            document.getElementById('lista1').value = "100788253\n100788254\n100788255\n100788256\n100788257\n100788258";
+            document.getElementById('lista2').value = "100788253\n100788255\n100788258\n100788999";
+            comparar();
+            showToast("SKUs de ejemplo cargados");
+        }
+
+        function limpiarCampo(id) {
+            document.getElementById(id).value = "";
+            comparar();
+        }
+
+        function limpiarTodo() {
+            document.getElementById('lista1').value = "";
+            document.getElementById('lista2').value = "";
+            document.getElementById('filterInput').value = "";
+            comparar();
+            showToast("Todo limpio");
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-16', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-16', 'opacity-0');
+            }, 2500);
+        }
+
+        window.onload = comparar;
+    </script>
+</body>
+</html>
